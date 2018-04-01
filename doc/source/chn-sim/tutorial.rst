@@ -180,6 +180,7 @@ Ray可以使任意的Python函数异步执行. 这是通过将一个Python函数
 
 程序员可以通过传递一个任务输出的对象ID作为另一个任务的参数来表达任务之间的依赖关系.
 如下, 我们创建了三个任务, 每一个任务依赖于前一个任务.
+
 .. code-block:: python
 
   @ray.remote
@@ -226,6 +227,7 @@ Ray可以使任意的Python函数异步执行. 这是通过将一个Python函数
 到目前为止, 我们仅在driver中调用了远端函数.
 但是worker进程同样可以调用远端函数.
 为了说明这一点, 考虑下面的例子.
+
 .. code-block:: python
 
   @ray.remote
