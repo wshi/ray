@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 #include <list>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "ray/common/client_connection.h"
 #include "ray/raylet/worker.h"
@@ -25,21 +27,26 @@ class WorkerPool {
   /// pool.
   ///
   /// \param num_workers The number of workers to start.
+  /// \param worker_command The command used to start the worker process.
   WorkerPool(int num_workers, const std::vector<std::string> &worker_command);
 
-  /// Destructor responsible for freeing a set of workers owned by this class.
-  ~WorkerPool();
-
-  /// Get the number of idle workers in the pool.
+  /// Create a pool with zero workers.
   ///
-  /// \return The number of idle workers.
-  uint32_t PoolSize() const;
+  /// \param num_workers The number of workers to start.
+  /// \param worker_command The command used to start the worker process.
+  WorkerPool(const std::vector<std::string> &worker_command);
+
+  /// Destructor responsible for freeing a set of workers owned by this class.
+  virtual ~WorkerPool();
 
   /// Asynchronously start a new worker process. Once the worker process has
   /// registered with an external server, the process should create and
   /// register a new Worker, then add itself to the pool. Failure to start
   /// the worker process is a fatal error.
-  void StartWorker();
+  ///
+  /// \param force_start Controls whether to force starting a worker regardless of any
+  /// workers that have already been started but not yet registered.
+  void StartWorker(bool force_start = false);
 
   /// Register a new worker. The Worker should be added by the caller to the
   /// pool after it becomes idle (e.g., requests a work assignment).
@@ -52,8 +59,8 @@ class WorkerPool {
   /// \param The client connection owned by a registered worker.
   /// \return The Worker that owns the given client connection. Returns nullptr
   /// if the client has not registered a worker yet.
-  const std::shared_ptr<Worker> GetRegisteredWorker(
-      std::shared_ptr<LocalClientConnection> connection) const;
+  std::shared_ptr<Worker> GetRegisteredWorker(
+      const std::shared_ptr<LocalClientConnection> &connection) const;
 
   /// Disconnect a registered worker.
   ///
@@ -61,8 +68,7 @@ class WorkerPool {
   /// \return Whether the given worker was in the pool of idle workers.
   bool DisconnectWorker(std::shared_ptr<Worker> worker);
 
-  /// Add an idle worker to the pool. The worker's task assignment will be
-  /// reset.
+  /// Add an idle worker to the pool.
   ///
   /// \param The idle worker to add.
   void PushWorker(std::shared_ptr<Worker> worker);
@@ -70,17 +76,39 @@ class WorkerPool {
   /// Pop an idle worker from the pool. The caller is responsible for pushing
   /// the worker back onto the pool once the worker has completed its work.
   ///
-  /// \return An idle worker. Returns nullptr if the pool is empty.
-  std::shared_ptr<Worker> PopWorker();
+  /// \param actor_id The returned worker must have this actor ID.
+  /// \return An idle worker with the requested actor ID. Returns nullptr if no
+  /// such worker exists.
+  std::shared_ptr<Worker> PopWorker(const ActorID &actor_id);
+
+  /// Return the current size of the worker pool. Counts only the workers that registered
+  /// and requested a task.
+  ///
+  /// \return The total count of all workers (actor and non-actor) in the pool.
+  uint32_t Size() const;
+
+ protected:
+  /// Add started worker PID to the internal list of started workers (for testing).
+  ///
+  /// \param pid A process identifier for the worker being started.
+  void AddStartedWorker(pid_t pid);
+
+  /// Return a number of workers currently started but not registered.
+  ///
+  /// \return The number of worker PIDs stored for started workers.
+  uint32_t NumStartedWorkers() const;
 
  private:
   std::vector<std::string> worker_command_;
   /// The pool of idle workers.
   std::list<std::shared_ptr<Worker>> pool_;
+  /// The pool of idle actor workers.
+  std::unordered_map<ActorID, std::shared_ptr<Worker>> actor_pool_;
   /// All workers that have registered and are still connected, including both
   /// idle and executing.
   // TODO(swang): Make this a map to make GetRegisteredWorker faster.
   std::list<std::shared_ptr<Worker>> registered_workers_;
+  std::unordered_set<pid_t> started_worker_pids_;
 };
 
 }  // namespace raylet

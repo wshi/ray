@@ -7,15 +7,17 @@ ObjectDirectory::ObjectDirectory(std::shared_ptr<gcs::AsyncGcsClient> gcs_client
 };
 
 ray::Status ObjectDirectory::ReportObjectAdded(const ObjectID &object_id,
-                                               const ClientID &client_id) {
+                                               const ClientID &client_id,
+                                               const ObjectInfoT &object_info) {
   // TODO(hme): Determine whether we need to do lookup to append.
   JobID job_id = JobID::from_random();
   auto data = std::make_shared<ObjectTableDataT>();
   data->manager = client_id.binary();
   data->is_eviction = false;
+  data->object_size = object_info.data_size;
   ray::Status status = gcs_client_->object_table().Append(
-      job_id, object_id, data, [](gcs::AsyncGcsClient *client, const UniqueID &id,
-                                  const std::shared_ptr<ObjectTableDataT> data) {
+      job_id, object_id, data,
+      [](gcs::AsyncGcsClient *client, const UniqueID &id, const ObjectTableDataT &data) {
         // Do nothing.
       });
   return status;
@@ -56,13 +58,12 @@ ray::Status ObjectDirectory::GetLocations(const ObjectID &object_id,
 };
 
 ray::Status ObjectDirectory::ExecuteGetLocations(const ObjectID &object_id) {
-  JobID job_id = JobID::from_random();
+  JobID job_id = JobID::nil();
   // Note: Lookup must be synchronous for thread-safe access.
   // For now, this is only accessed by the main thread.
   ray::Status status = gcs_client_->object_table().Lookup(
-      job_id, object_id,
-      [this, object_id](gcs::AsyncGcsClient *client, const ObjectID &object_id,
-                        const std::vector<ObjectTableDataT> &data) {
+      job_id, object_id, [this](gcs::AsyncGcsClient *client, const ObjectID &object_id,
+                                const std::vector<ObjectTableDataT> &data) {
         GetLocationsComplete(object_id, data);
       });
   return status;
@@ -76,7 +77,7 @@ void ObjectDirectory::GetLocationsComplete(
     return;
   }
   // Build the set of current locations based on the entries in the log.
-  std::unordered_set<ClientID, UniqueIDHasher> locations;
+  std::unordered_set<ClientID> locations;
   for (auto entry : location_entries) {
     ClientID client_id = ClientID::from_binary(entry.manager);
     if (!entry.is_eviction) {
@@ -99,7 +100,5 @@ ray::Status ObjectDirectory::Cancel(const ObjectID &object_id) {
   existing_requests_.erase(object_id);
   return ray::Status::OK();
 };
-
-ray::Status ObjectDirectory::Terminate() { return ray::Status::OK(); };
 
 }  // namespace ray

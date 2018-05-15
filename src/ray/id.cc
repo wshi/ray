@@ -1,5 +1,6 @@
 #include "ray/id.h"
 
+#include <limits.h>
 #include <random>
 
 #include "ray/constants.h"
@@ -81,12 +82,19 @@ bool UniqueID::operator==(const UniqueID &rhs) const {
   return std::memcmp(data(), rhs.data(), kUniqueIDSize) == 0;
 }
 
+size_t UniqueID::hash() const {
+  size_t result;
+  // Skip the bytes for the object prefix.
+  std::memcpy(&result, id_ + (kObjectIdIndexSize / CHAR_BIT), sizeof(size_t));
+  return result;
+}
+
 std::ostream &operator<<(std::ostream &os, const UniqueID &id) {
   os << id.hex();
   return os;
 }
 
-const ObjectID ComputeObjectId(TaskID task_id, int64_t object_index) {
+const ObjectID ComputeObjectId(const TaskID &task_id, int64_t object_index) {
   RAY_CHECK(object_index <= kMaxTaskReturns && object_index >= -kMaxTaskPuts);
   ObjectID return_id = task_id;
   int64_t *first_bytes = reinterpret_cast<int64_t *>(&return_id);
@@ -101,12 +109,12 @@ const ObjectID ComputeObjectId(TaskID task_id, int64_t object_index) {
 
 const TaskID FinishTaskId(const TaskID &task_id) { return ComputeObjectId(task_id, 0); }
 
-const ObjectID ComputeReturnId(TaskID task_id, int64_t return_index) {
+const ObjectID ComputeReturnId(const TaskID &task_id, int64_t return_index) {
   RAY_CHECK(return_index >= 1 && return_index <= kMaxTaskReturns);
   return ComputeObjectId(task_id, return_index);
 }
 
-const ObjectID ComputePutId(TaskID task_id, int64_t put_index) {
+const ObjectID ComputePutId(const TaskID &task_id, int64_t put_index) {
   RAY_CHECK(put_index >= 1 && put_index <= kMaxTaskPuts);
   return ComputeObjectId(task_id, -1 * put_index);
 }

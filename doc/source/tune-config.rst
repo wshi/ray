@@ -69,7 +69,6 @@ By default, each random variable and grid search point is sampled once. To take 
 
 For more information on variant generation, see `variant_generator.py <https://github.com/ray-project/ray/blob/master/python/ray/tune/variant_generator.py>`__.
 
-
 Resource Allocation
 -------------------
 

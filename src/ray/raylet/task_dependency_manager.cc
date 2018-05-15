@@ -12,9 +12,15 @@ TaskDependencyManager::TaskDependencyManager(
       // reconstruction_policy_(reconstruction_policy),
       task_ready_callback_(handler) {
   // TODO(swang): Check return status.
-  ray::Status status = object_manager_.SubscribeObjAdded(
-      [this](const ObjectID &object_id) { handleObjectReady(object_id); });
+  ray::Status status =
+      object_manager_.SubscribeObjAdded([this](const ObjectInfoT &object_info) {
+        handleObjectReady(ObjectID::from_binary(object_info.object_id));
+      });
   // TODO(swang): Subscribe to object removed notifications.
+}
+
+bool TaskDependencyManager::CheckObjectLocal(const ObjectID &object_id) const {
+  return local_objects_.count(object_id) == 1;
 }
 
 bool TaskDependencyManager::argumentsReady(const std::vector<ObjectID> arguments) const {
@@ -29,7 +35,7 @@ bool TaskDependencyManager::argumentsReady(const std::vector<ObjectID> arguments
 }
 
 void TaskDependencyManager::handleObjectReady(const ray::ObjectID &object_id) {
-  RAY_LOG(DEBUG) << "object ready " << object_id.hex();
+  RAY_LOG(DEBUG) << "object ready " << object_id;
   // Add the object to the table of locally available objects.
   RAY_CHECK(local_objects_.count(object_id) == 0);
   local_objects_.insert(object_id);
@@ -105,7 +111,7 @@ void TaskDependencyManager::UnsubscribeTaskReady(const TaskID &task_id) {
 }
 
 void TaskDependencyManager::MarkDependencyReady(const ObjectID &object) {
-  throw std::runtime_error("Method not implemented");
+  handleObjectReady(object);
 }
 
 }  // namespace raylet

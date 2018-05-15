@@ -14,7 +14,8 @@ ENV_CREATOR = "env_creator"
 RLLIB_MODEL = "rllib_model"
 RLLIB_PREPROCESSOR = "rllib_preprocessor"
 KNOWN_CATEGORIES = [
-    TRAINABLE_CLASS, ENV_CREATOR, RLLIB_MODEL, RLLIB_PREPROCESSOR]
+    TRAINABLE_CLASS, ENV_CREATOR, RLLIB_MODEL, RLLIB_PREPROCESSOR
+]
 
 
 def register_trainable(name, trainable):
@@ -22,7 +23,7 @@ def register_trainable(name, trainable):
 
     Args:
         name (str): Name to register.
-        trainable (obj): Function or tune.Trainable clsas. Functions must
+        trainable (obj): Function or tune.Trainable class. Functions must
             take (config, status_reporter) as arguments and will be
             automatically converted into a class during registration.
     """
@@ -32,8 +33,8 @@ def register_trainable(name, trainable):
     if isinstance(trainable, FunctionType):
         trainable = wrap_function(trainable)
     if not issubclass(trainable, Trainable):
-        raise TypeError(
-            "Second argument must be convertable to Trainable", trainable)
+        raise TypeError("Second argument must be convertable to Trainable",
+                        trainable)
     _default_registry.register(TRAINABLE_CLASS, name, trainable)
 
 
@@ -46,8 +47,7 @@ def register_env(name, env_creator):
     """
 
     if not isinstance(env_creator, FunctionType):
-        raise TypeError(
-            "Second argument must be a function.", env_creator)
+        raise TypeError("Second argument must be a function.", env_creator)
     _default_registry.register(ENV_CREATOR, name, env_creator)
 
 
