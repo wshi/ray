@@ -19,15 +19,18 @@ class RedisContext;
 
 class RAY_EXPORT AsyncGcsClient {
  public:
-  /// Start a GCS client with the given client ID. To read from the GCS tables,
-  /// Connect and then Attach must be called. To read and write from the GCS
-  /// tables requires a further call to Connect to the client table.
+  /// Start a GCS client with the given client ID and command type (regular or
+  /// chain-replicated). To read from the GCS tables, Connect() and then
+  /// Attach() must be called. To read and write from the GCS tables requires a
+  /// further call to Connect() to the client table.
   ///
   /// \param client_id The ID to assign to the client.
+  /// \param command_type GCS command type.  If CommandType::kChain, chain-replicated
+  /// versions of the tables might be used, if available.
+  AsyncGcsClient(const ClientID &client_id, CommandType command_type);
   AsyncGcsClient(const ClientID &client_id);
-  /// Start a GCS client with a random client ID.
+  AsyncGcsClient(CommandType command_type);
   AsyncGcsClient();
-  ~AsyncGcsClient();
 
   /// Connect to the GCS.
   ///
@@ -45,12 +48,12 @@ class RAY_EXPORT AsyncGcsClient {
   inline FunctionTable &function_table();
   // TODO: Some API for getting the error on the driver
   inline ClassTable &class_table();
-  inline ActorTable &actor_table();
   inline CustomSerializerTable &custom_serializer_table();
   inline ConfigTable &config_table();
   ObjectTable &object_table();
   TaskTable &task_table();
   raylet::TaskTable &raylet_task_table();
+  ActorTable &actor_table();
   TaskReconstructionLog &task_reconstruction_log();
   ClientTable &client_table();
   HeartbeatTable &heartbeat_table();
@@ -72,12 +75,15 @@ class RAY_EXPORT AsyncGcsClient {
   std::unique_ptr<ObjectTable> object_table_;
   std::unique_ptr<TaskTable> task_table_;
   std::unique_ptr<raylet::TaskTable> raylet_task_table_;
+  std::unique_ptr<ActorTable> actor_table_;
   std::unique_ptr<TaskReconstructionLog> task_reconstruction_log_;
   std::unique_ptr<HeartbeatTable> heartbeat_table_;
   std::unique_ptr<ClientTable> client_table_;
   std::shared_ptr<RedisContext> context_;
   std::unique_ptr<RedisAsioClient> asio_async_client_;
   std::unique_ptr<RedisAsioClient> asio_subscribe_client_;
+
+  CommandType command_type_;
 };
 
 class SyncGcsClient {

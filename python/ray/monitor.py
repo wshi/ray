@@ -97,11 +97,11 @@ class Monitor(object):
         self.dead_plasma_managers = set()
         # Keep a mapping from local scheduler client ID to IP address to use
         # for updating the load metrics.
-        self.local_scheduler_id_to_ip_map = dict()
+        self.local_scheduler_id_to_ip_map = {}
         self.load_metrics = LoadMetrics()
         if autoscaling_config:
-            self.autoscaler = StandardAutoscaler(
-                autoscaling_config, self.load_metrics)
+            self.autoscaler = StandardAutoscaler(autoscaling_config,
+                                                 self.load_metrics)
         else:
             self.autoscaler = None
 
@@ -160,11 +160,9 @@ class Monitor(object):
             # task as lost.
             key = binary_to_object_id(hex_to_binary(task_id))
             ok = self.state._execute_command(
-                key, "RAY.TASK_TABLE_UPDATE",
-                hex_to_binary(task_id),
+                key, "RAY.TASK_TABLE_UPDATE", hex_to_binary(task_id),
                 ray.experimental.state.TASK_STATUS_LOST, NIL_ID,
-                task["ExecutionDependenciesString"],
-                task["SpillbackCount"])
+                task["ExecutionDependenciesString"], task["SpillbackCount"])
             if ok != b"OK":
                 log.warn("Failed to update lost task for dead scheduler.")
             num_tasks_updated += 1
@@ -191,10 +189,9 @@ class Monitor(object):
                 if manager in self.dead_plasma_managers:
                     # If the object was on a dead plasma manager, remove that
                     # location entry.
-                    ok = self.state._execute_command(object_id,
-                                                     "RAY.OBJECT_TABLE_REMOVE",
-                                                     object_id.id(),
-                                                     hex_to_binary(manager))
+                    ok = self.state._execute_command(
+                        object_id, "RAY.OBJECT_TABLE_REMOVE", object_id.id(),
+                        hex_to_binary(manager))
                     if ok != b"OK":
                         log.warn("Failed to remove object location for dead "
                                  "plasma manager.")
@@ -428,8 +425,8 @@ class Monitor(object):
         """
         message = DriverTableMessage.GetRootAsDriverTableMessage(data, 0)
         driver_id = message.DriverId()
-        log.info(
-            "Driver {} has been removed.".format(binary_to_hex(driver_id)))
+        log.info("Driver {} has been removed.".format(
+            binary_to_hex(driver_id)))
 
         self._clean_up_entries_for_driver(driver_id)
 
@@ -506,11 +503,13 @@ class Monitor(object):
             self.cleanup_task_table()
         if len(self.dead_plasma_managers) > 0:
             self.cleanup_object_table()
+
+        num_plasma_managers = len(self.live_plasma_managers) + len(
+            self.dead_plasma_managers)
+
         log.debug("{} dead local schedulers, {} plasma managers total, {} "
                   "dead plasma managers".format(
-                      len(self.dead_local_schedulers),
-                      (len(self.live_plasma_managers) +
-                       len(self.dead_plasma_managers)),
+                      len(self.dead_local_schedulers), num_plasma_managers,
                       len(self.dead_plasma_managers)))
 
         # Handle messages from the subscription channels.
@@ -571,8 +570,9 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=("Parse Redis server for the "
-                                                  "monitor to connect to."))
+    parser = argparse.ArgumentParser(
+        description=("Parse Redis server for the "
+                     "monitor to connect to."))
     parser.add_argument(
         "--redis-address",
         required=True,

@@ -9,6 +9,7 @@ from ray.rllib.optimizers.replay_buffer import ReplayBuffer, \
     PrioritizedReplayBuffer
 from ray.rllib.optimizers.policy_optimizer import PolicyOptimizer
 from ray.rllib.optimizers.sample_batch import SampleBatch
+from ray.rllib.utils.compression import pack_if_needed
 from ray.rllib.utils.filter import RunningStat
 from ray.rllib.utils.timer import TimerStat
 
@@ -64,7 +65,8 @@ class LocalSyncReplayOptimizer(PolicyOptimizer):
                 batch = self.local_evaluator.sample()
             for row in batch.rows():
                 self.replay_buffer.add(
-                    row["obs"], row["actions"], row["rewards"], row["new_obs"],
+                    pack_if_needed(row["obs"]), row["actions"], row["rewards"],
+                    pack_if_needed(row["new_obs"]),
                     row["dones"], row["weights"])
 
         if len(self.replay_buffer) >= self.replay_starts:
@@ -85,17 +87,17 @@ class LocalSyncReplayOptimizer(PolicyOptimizer):
                         self.train_batch_size)
                 weights = np.ones_like(rewards)
                 batch_indexes = - np.ones_like(rewards)
-
             samples = SampleBatch({
                 "obs": obses_t, "actions": actions, "rewards": rewards,
                 "new_obs": obses_tp1, "dones": dones, "weights": weights,
                 "batch_indexes": batch_indexes})
 
         with self.grad_timer:
-            td_error = self.local_evaluator.compute_apply(samples)["td_error"]
-            new_priorities = (
-                np.abs(td_error) + self.prioritized_replay_eps)
+            info = self.local_evaluator.compute_apply(samples)
             if isinstance(self.replay_buffer, PrioritizedReplayBuffer):
+                td_error = info["td_error"]
+                new_priorities = (
+                    np.abs(td_error) + self.prioritized_replay_eps)
                 self.replay_buffer.update_priorities(
                     samples["batch_indexes"], new_priorities)
             self.grad_timer.push_units_processed(samples.count)

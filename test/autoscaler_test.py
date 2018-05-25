@@ -56,7 +56,8 @@ class MockProvider(NodeProvider):
             raise Exception("oops")
         return [
             n.node_id for n in self.mock_nodes.values()
-            if n.matches(tag_filters) and n.state != "terminated"]
+            if n.matches(tag_filters) and n.state != "terminated"
+        ]
 
     def is_running(self, node_id):
         return self.mock_nodes[node_id].state == "running"
@@ -101,7 +102,6 @@ SMALL_CLUSTER = {
     "docker": {
         "image": "example",
         "container_name": "mock",
-
     },
     "auth": {
         "ssh_user": "ubuntu",
@@ -269,8 +269,11 @@ class AutoscalingTest(unittest.TestCase):
         config_path = self.write_config(SMALL_CLUSTER)
         self.provider = MockProvider()
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_concurrent_launches=5,
-            max_failures=0, update_interval_s=0)
+            config_path,
+            LoadMetrics(),
+            max_concurrent_launches=5,
+            max_failures=0,
+            update_interval_s=0)
         self.assertEqual(len(self.provider.nodes({})), 0)
         autoscaler.update()
         self.assertEqual(len(self.provider.nodes({})), 2)
@@ -295,8 +298,11 @@ class AutoscalingTest(unittest.TestCase):
         config_path = self.write_config(SMALL_CLUSTER)
         self.provider = MockProvider()
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_concurrent_launches=5,
-            max_failures=0, update_interval_s=10)
+            config_path,
+            LoadMetrics(),
+            max_concurrent_launches=5,
+            max_failures=0,
+            update_interval_s=10)
         autoscaler.update()
         self.assertEqual(len(self.provider.nodes({})), 2)
         new_config = SMALL_CLUSTER.copy()
@@ -328,8 +334,11 @@ class AutoscalingTest(unittest.TestCase):
         config_path = self.write_config(SMALL_CLUSTER)
         self.provider = MockProvider()
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_concurrent_launches=10,
-            max_failures=0, update_interval_s=0)
+            config_path,
+            LoadMetrics(),
+            max_concurrent_launches=10,
+            max_failures=0,
+            update_interval_s=0)
         autoscaler.update()
 
         # Write a corrupted config
@@ -356,14 +365,6 @@ class AutoscalingTest(unittest.TestCase):
         autoscaler.update()
         self.assertRaises(Exception, autoscaler.update)
 
-    def testAbortOnCreationFailures(self):
-        config_path = self.write_config(SMALL_CLUSTER)
-        self.provider = MockProvider()
-        self.provider.fail_creates = True
-        autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_failures=0, update_interval_s=0)
-        self.assertRaises(AssertionError, autoscaler.update)
-
     def testLaunchNewNodeOnOutOfBandTerminate(self):
         config_path = self.write_config(SMALL_CLUSTER)
         self.provider = MockProvider()
@@ -383,16 +384,22 @@ class AutoscalingTest(unittest.TestCase):
         self.provider = MockProvider()
         runner = MockProcessRunner()
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_failures=0, process_runner=runner,
-            verbose_updates=True, node_updater_cls=NodeUpdaterThread,
+            config_path,
+            LoadMetrics(),
+            max_failures=0,
+            process_runner=runner,
+            verbose_updates=True,
+            node_updater_cls=NodeUpdaterThread,
             update_interval_s=0)
         autoscaler.update()
         autoscaler.update()
         self.assertEqual(len(self.provider.nodes({})), 2)
         for node in self.provider.mock_nodes.values():
             node.state = "running"
-        assert len(self.provider.nodes(
-            {TAG_RAY_NODE_STATUS: "Uninitialized"})) == 2
+        assert len(
+            self.provider.nodes({
+                TAG_RAY_NODE_STATUS: "Uninitialized"
+            })) == 2
         autoscaler.update()
         self.waitFor(
             lambda: len(self.provider.nodes(
@@ -403,16 +410,22 @@ class AutoscalingTest(unittest.TestCase):
         self.provider = MockProvider()
         runner = MockProcessRunner(fail_cmds=["cmd1"])
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_failures=0, process_runner=runner,
-            verbose_updates=True, node_updater_cls=NodeUpdaterThread,
+            config_path,
+            LoadMetrics(),
+            max_failures=0,
+            process_runner=runner,
+            verbose_updates=True,
+            node_updater_cls=NodeUpdaterThread,
             update_interval_s=0)
         autoscaler.update()
         autoscaler.update()
         self.assertEqual(len(self.provider.nodes({})), 2)
         for node in self.provider.mock_nodes.values():
             node.state = "running"
-        assert len(self.provider.nodes(
-            {TAG_RAY_NODE_STATUS: "Uninitialized"})) == 2
+        assert len(
+            self.provider.nodes({
+                TAG_RAY_NODE_STATUS: "Uninitialized"
+            })) == 2
         autoscaler.update()
         self.waitFor(
             lambda: len(self.provider.nodes(
@@ -423,8 +436,12 @@ class AutoscalingTest(unittest.TestCase):
         self.provider = MockProvider()
         runner = MockProcessRunner()
         autoscaler = StandardAutoscaler(
-            config_path, LoadMetrics(), max_failures=0, process_runner=runner,
-            verbose_updates=True, node_updater_cls=NodeUpdaterThread,
+            config_path,
+            LoadMetrics(),
+            max_failures=0,
+            process_runner=runner,
+            verbose_updates=True,
+            node_updater_cls=NodeUpdaterThread,
             update_interval_s=0)
         autoscaler.update()
         autoscaler.update()
@@ -490,8 +507,12 @@ class AutoscalingTest(unittest.TestCase):
         runner = MockProcessRunner()
         lm = LoadMetrics()
         autoscaler = StandardAutoscaler(
-            config_path, lm, max_failures=0, process_runner=runner,
-            verbose_updates=True, node_updater_cls=NodeUpdaterThread,
+            config_path,
+            lm,
+            max_failures=0,
+            process_runner=runner,
+            verbose_updates=True,
+            node_updater_cls=NodeUpdaterThread,
             update_interval_s=0)
         autoscaler.update()
         for node in self.provider.mock_nodes.values():
@@ -512,7 +533,7 @@ class AutoscalingTest(unittest.TestCase):
         config["provider"] = {
             "type": "external",
             "module": "ray.autoscaler.node_provider.NodeProvider",
-            }
+        }
         config_path = self.write_config(config)
         autoscaler = StandardAutoscaler(
             config_path, LoadMetrics(), max_failures=0, update_interval_s=0)
@@ -523,7 +544,7 @@ class AutoscalingTest(unittest.TestCase):
         config["provider"] = {
             "type": "external",
             "module": "mymodule.provider_class",
-            }
+        }
         invalid_provider = self.write_config(config)
         self.assertRaises(
             ImportError,
@@ -535,7 +556,7 @@ class AutoscalingTest(unittest.TestCase):
         config["provider"] = {
             "type": "external",
             "module": "does-not-exist",
-            }
+        }
         invalid_provider = self.write_config(config)
         self.assertRaises(
             ValueError,
